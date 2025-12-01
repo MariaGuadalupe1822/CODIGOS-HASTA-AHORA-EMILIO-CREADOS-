@@ -1,17 +1,29 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
 import hashlib
 import os
 import io
+import base64
 from functools import wraps
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.utils import ImageReader
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+import json
+from bson import json_util
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_biblioteca_2024'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
+# Crear carpeta de uploads si no existe
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ----------------- CONEXIÓN A MONGODB -----------------
 try:
@@ -24,6 +36,8 @@ try:
     coleccion_usuarios = db['usuarios']
     coleccion_clientes = db['clientes']  
     coleccion_ventas = db['ventas']
+    coleccion_pedidos = db['pedidos']  # Nueva colección para seguimiento
+    coleccion_cancelaciones = db['cancelaciones']  # Nueva colección para cancelaciones
 
     print("Conexión exitosa a MongoDB.")
 
@@ -64,6 +78,11 @@ def admin_required(f):
 def calcular_iva(subtotal, porcentaje_iva=16):
     """Calcular IVA basado en el subtotal"""
     return subtotal * (porcentaje_iva / 100)
+
+def puede_cancelar_venta(fecha_venta):
+    """Verificar si una venta puede ser cancelada (menos de 15 minutos)"""
+    tiempo_transcurrido = datetime.now() - fecha_venta
+    return tiempo_transcurrido.total_seconds() < 900  # 15 minutos = 900 segundos
 
 # ----------------- INICIALIZAR DATOS -----------------
 def inicializar_datos():
@@ -183,7 +202,7 @@ def logout():
     flash('Sesión cerrada correctamente', 'success')
     return redirect(url_for('login'))
 
-# ----------------- DASHBOARD ADMIN -----------------
+# ----------------- DASHBOARD ADMIN CON GRÁFICOS -----------------
 
 @app.route('/dashboard')
 @login_required
@@ -200,7 +219,7 @@ def dashboard():
         
         libros_stock_bajo = list(coleccion_libros.find({'stock': {'$lt': 5}}))
         
-        # CORREGIDO: Ventas recientes para el dashboard
+        # Ventas recientes
         ventas_recientes_cursor = coleccion_ventas.find().sort('fecha_venta', -1).limit(5)
         ventas_recientes = list(ventas_recientes_cursor)
         
@@ -209,13 +228,74 @@ def dashboard():
                 cliente = coleccion_clientes.find_one({'_id': ObjectId(venta['cliente_id'])})
                 venta['cliente_nombre'] = cliente['nombre'] if cliente else 'Cliente no encontrado'
         
+        # Datos para gráficos
+        # Top 5 libros más vendidos
+        pipeline_libros = [
+            {"$unwind": "$items"},
+            {"$group": {
+                "_id": "$items.libro_id",
+                "titulo": {"$first": "$items.titulo"},
+                "total_vendido": {"$sum": "$items.cantidad"},
+                "total_ingresos": {"$sum": "$items.subtotal"}
+            }},
+            {"$sort": {"total_vendido": -1}},
+            {"$limit": 5}
+        ]
+        libros_mas_vendidos = list(coleccion_ventas.aggregate(pipeline_libros))
+        
+        # Top 5 clientes más frecuentes
+        pipeline_clientes = [
+            {"$group": {
+                "_id": "$cliente_id",
+                "cliente_nombre": {"$first": "$cliente_nombre"},
+                "total_compras": {"$sum": 1},
+                "total_gastado": {"$sum": "$total"}
+            }},
+            {"$sort": {"total_compras": -1}},
+            {"$limit": 5}
+        ]
+        clientes_frecuentes = list(coleccion_ventas.aggregate(pipeline_clientes))
+        
+        # Ventas por día últimos 7 días
+        fecha_inicio = datetime.now() - timedelta(days=7)
+        pipeline_ventas_diarias = [
+            {"$match": {"fecha_venta": {"$gte": fecha_inicio}}},
+            {"$group": {
+                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$fecha_venta"}},
+                "total_ventas": {"$sum": 1},
+                "total_ingresos": {"$sum": "$total"}
+            }},
+            {"$sort": {"_id": 1}}
+        ]
+        ventas_diarias = list(coleccion_ventas.aggregate(pipeline_ventas_diarias))
+        
+        # Preparar datos para gráficos
+        fechas = [v['_id'] for v in ventas_diarias]
+        ventas_por_dia = [v['total_ventas'] for v in ventas_diarias]
+        ingresos_por_dia = [v['total_ingresos'] for v in ventas_diarias]
+        
+        nombres_libros = [libro['titulo'] for libro in libros_mas_vendidos]
+        ventas_libros = [libro['total_vendido'] for libro in libros_mas_vendidos]
+        
+        nombres_clientes = [cliente['cliente_nombre'] for cliente in clientes_frecuentes]
+        compras_clientes = [cliente['total_compras'] for cliente in clientes_frecuentes]
+        
         return render_template('dashboard.html',
                              total_libros=total_libros,
                              total_clientes=total_clientes,
                              total_ventas=total_ventas,
                              total_ventas_mes=total_ventas_mes,
                              libros_stock_bajo=libros_stock_bajo,
-                             ventas_recientes=ventas_recientes)
+                             ventas_recientes=ventas_recientes,
+                             libros_mas_vendidos=libros_mas_vendidos,
+                             clientes_frecuentes=clientes_frecuentes,
+                             fechas=json.dumps(fechas),
+                             ventas_por_dia=json.dumps(ventas_por_dia),
+                             ingresos_por_dia=json.dumps(ingresos_por_dia),
+                             nombres_libros=json.dumps(nombres_libros),
+                             ventas_libros=json.dumps(ventas_libros),
+                             nombres_clientes=json.dumps(nombres_clientes),
+                             compras_clientes=json.dumps(compras_clientes))
     except Exception as e:
         flash(f'Error al cargar dashboard: {e}', 'error')
         return render_template('dashboard.html')
@@ -321,7 +401,7 @@ def eliminar_usuario(id):
     
     return redirect(url_for('listar_usuarios'))
 
-# ----------------- CRUD LIBROS (ADMIN) -----------------
+# ----------------- CRUD LIBROS CON IMÁGENES -----------------
 
 @app.route('/libros')
 @login_required
@@ -349,6 +429,17 @@ def listar_libros():
 def agregar_libro():
     if request.method == 'POST':
         try:
+            # Manejar carga de imagen
+            imagen_url = ''
+            if 'imagen' in request.files:
+                imagen = request.files['imagen']
+                if imagen.filename != '':
+                    # Guardar imagen
+                    filename = f"libro_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{imagen.filename}"
+                    imagen_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    imagen.save(imagen_path)
+                    imagen_url = f"/static/uploads/{filename}"
+            
             libro = {
                 'nombre': request.form.get('nombre'),         
                 'autor': request.form.get('autor'),
@@ -358,6 +449,7 @@ def agregar_libro():
                 'anio_publicacion': int(request.form.get('anio_publicacion', 0)),
                 'precio': float(request.form.get('precio', 0)),
                 'descripcion': request.form.get('descripcion', ''),
+                'imagen_url': imagen_url,
                 'fecha_agregado': datetime.now()
             }
             coleccion_libros.insert_one(libro)
@@ -385,6 +477,15 @@ def editar_libro(id):
                 'precio': float(request.form.get('precio', 0)),
                 'descripcion': request.form.get('descripcion', '')
             }
+            
+            # Manejar nueva imagen si se sube
+            if 'imagen' in request.files:
+                imagen = request.files['imagen']
+                if imagen.filename != '':
+                    filename = f"libro_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{imagen.filename}"
+                    imagen_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    imagen.save(imagen_path)
+                    datos_actualizados['imagen_url'] = f"/static/uploads/{filename}"
             
             coleccion_libros.update_one(
                 {'_id': ObjectId(id)},
@@ -511,14 +612,21 @@ def eliminar_cliente(id):
     
     return redirect(url_for('listar_clientes'))
 
-# ----------------- VENTAS CON IVA -----------------
+# ----------------- VENTAS CON CANCELACIONES -----------------
 
 @app.route('/ventas')
 @login_required
 def listar_ventas():
     try:
-        # CORREGIDO: Convertir cursor a lista correctamente
-        ventas_cursor = coleccion_ventas.find().sort('fecha_venta', -1)
+        pagina = int(request.args.get('pagina', 1))
+        ventas_por_pagina = 10
+        
+        # Calcular paginación
+        total_ventas = coleccion_ventas.count_documents({})
+        total_paginas = (total_ventas + ventas_por_pagina - 1) // ventas_por_pagina
+        
+        skip = (pagina - 1) * ventas_por_pagina
+        ventas_cursor = coleccion_ventas.find().sort('fecha_venta', -1).skip(skip).limit(ventas_por_pagina)
         ventas = list(ventas_cursor)
         
         for venta in ventas:
@@ -538,11 +646,96 @@ def listar_ventas():
             if 'usuario_nombre' not in venta and 'usuario_id' in venta:
                 usuario = coleccion_usuarios.find_one({'_id': ObjectId(venta['usuario_id'])})
                 venta['usuario_nombre'] = usuario['nombre'] if usuario else 'Usuario no encontrado'
+            
+            # Verificar si puede ser cancelada
+            venta['puede_cancelar'] = puede_cancelar_venta(venta['fecha_venta'])
+            
+            # Verificar si ya está cancelada
+            cancelacion = coleccion_cancelaciones.find_one({'venta_id': str(venta['_id'])})
+            venta['cancelada'] = cancelacion is not None
+            if cancelacion:
+                venta['razon_cancelacion'] = cancelacion.get('razon', '')
+                venta['fecha_cancelacion'] = cancelacion.get('fecha_cancelacion', '')
         
-        return render_template('ventas.html', ventas=ventas)
+        # Fechas para los filtros de reportes
+        hoy = datetime.now().strftime('%Y-%m-%d')
+        mes_actual = datetime.now().strftime('%Y-%m')
+        anio_actual = datetime.now().year
+        
+        return render_template('ventas.html', 
+                             ventas=ventas,
+                             pagina=pagina,
+                             total_paginas=total_paginas,
+                             hoy=hoy,
+                             mes_actual=mes_actual,
+                             anio_actual=anio_actual)
     except Exception as e:
         flash(f'Error al cargar ventas: {str(e)}', 'error')
         return render_template('ventas.html', ventas=[])
+
+@app.route('/ventas/cancelar/<id>', methods=['POST'])
+@login_required
+def cancelar_venta(id):
+    try:
+        venta = coleccion_ventas.find_one({'_id': ObjectId(id)})
+        if not venta:
+            flash('Venta no encontrada', 'error')
+            return redirect(url_for('listar_ventas'))
+        
+        # Verificar si ya está cancelada
+        cancelacion_existente = coleccion_cancelaciones.find_one({'venta_id': id})
+        if cancelacion_existente:
+            flash('Esta venta ya ha sido cancelada', 'error')
+            return redirect(url_for('listar_ventas'))
+        
+        # Verificar tiempo (15 minutos)
+        if not puede_cancelar_venta(venta['fecha_venta']):
+            flash('No se puede cancelar la venta después de 15 minutos', 'error')
+            return redirect(url_for('listar_ventas'))
+        
+        razon = request.form.get('razon', 'Cancelación solicitada por el cliente')
+        
+        # Crear registro de cancelación
+        cancelacion = {
+            'venta_id': id,
+            'cliente_id': venta['cliente_id'],
+            'cliente_nombre': venta.get('cliente_nombre', ''),
+            'total_venta': venta['total'],
+            'razon': razon,
+            'cancelado_por': session['usuario_id'],
+            'cancelado_por_nombre': session['usuario_nombre'],
+            'fecha_cancelacion': datetime.now(),
+            'fecha_venta_original': venta['fecha_venta']
+        }
+        
+        # Devolver stock de libros
+        for item in venta.get('items', []):
+            libro_id = item['libro_id']
+            cantidad = item['cantidad']
+            
+            libro = coleccion_libros.find_one({'_id': ObjectId(libro_id)})
+            if libro:
+                nuevo_stock = libro.get('stock', 0) + cantidad
+                coleccion_libros.update_one(
+                    {'_id': ObjectId(libro_id)},
+                    {'$set': {'stock': nuevo_stock}}
+                )
+        
+        # Guardar cancelación
+        coleccion_cancelaciones.insert_one(cancelacion)
+        
+        # Marcar venta como cancelada
+        coleccion_ventas.update_one(
+            {'_id': ObjectId(id)},
+            {'$set': {'estado': 'cancelada'}}
+        )
+        
+        flash('Venta cancelada exitosamente. Stock devuelto a inventario.', 'success')
+        return redirect(url_for('listar_ventas'))
+        
+    except Exception as e:
+        flash(f'Error al cancelar venta: {str(e)}', 'error')
+        return redirect(url_for('listar_ventas'))
 
 @app.route('/ventas/nueva', methods=['GET', 'POST'])
 @login_required
@@ -641,10 +834,196 @@ def ver_venta(id):
             flash('Venta no encontrada', 'error')
             return redirect(url_for('listar_ventas'))
         
+        # Verificar cancelación
+        cancelacion = coleccion_cancelaciones.find_one({'venta_id': id})
+        venta['cancelada'] = cancelacion is not None
+        if cancelacion:
+            venta['razon_cancelacion'] = cancelacion.get('razon', '')
+            venta['fecha_cancelacion'] = cancelacion.get('fecha_cancelacion', '')
+        
+        venta['puede_cancelar'] = puede_cancelar_venta(venta['fecha_venta'])
+        
         return render_template('ver_venta.html', venta=venta)
     except Exception as e:
         flash(f'Error al cargar venta: {e}', 'error')
         return redirect(url_for('listar_ventas'))
+
+# ----------------- SEGUIMIENTO DE PEDIDOS ONLINE -----------------
+
+@app.route('/seguimiento-pedidos')
+@login_required
+def seguimiento_pedidos():
+    try:
+        # Obtener pedidos online pendientes
+        pedidos = list(coleccion_ventas.find({
+            'tipo': 'online',
+            'estado': {'$in': ['pendiente', 'en_proceso', 'enviado']}
+        }).sort('fecha_venta', -1))
+        
+        # Obtener estados de seguimiento si existen
+        for pedido in pedidos:
+            seguimiento = coleccion_pedidos.find_one({'venta_id': str(pedido['_id'])})
+            if seguimiento:
+                pedido['estado_seguimiento'] = seguimiento.get('estado', 'pendiente')
+                pedido['ultima_actualizacion'] = seguimiento.get('ultima_actualizacion', '')
+                pedido['comentarios'] = seguimiento.get('comentarios', [])
+            else:
+                # Crear registro de seguimiento si no existe
+                nuevo_seguimiento = {
+                    'venta_id': str(pedido['_id']),
+                    'cliente_id': pedido['cliente_id'],
+                    'cliente_nombre': pedido.get('cliente_nombre', ''),
+                    'estado': 'pendiente',
+                    'fecha_pedido': pedido['fecha_venta'],
+                    'ultima_actualizacion': pedido['fecha_venta'],
+                    'comentarios': [{
+                        'fecha': pedido['fecha_venta'],
+                        'mensaje': 'Pedido recibido',
+                        'usuario': 'Sistema'
+                    }]
+                }
+                coleccion_pedidos.insert_one(nuevo_seguimiento)
+                pedido['estado_seguimiento'] = 'pendiente'
+                pedido['ultima_actualizacion'] = pedido['fecha_venta']
+                pedido['comentarios'] = nuevo_seguimiento['comentarios']
+        
+        return render_template('seguimiento_pedidos.html', pedidos=pedidos)
+    except Exception as e:
+        flash(f'Error al cargar pedidos: {str(e)}', 'error')
+        return render_template('seguimiento_pedidos.html', pedidos=[])
+
+@app.route('/actualizar-estado-pedido/<id>', methods=['POST'])
+@login_required
+def actualizar_estado_pedido(id):
+    try:
+        nuevo_estado = request.form.get('estado')
+        comentario = request.form.get('comentario', '')
+        
+        if not nuevo_estado:
+            flash('Selecciona un estado', 'error')
+            return redirect(url_for('seguimiento_pedidos'))
+        
+        pedido = coleccion_pedidos.find_one({'venta_id': id})
+        if not pedido:
+            # Buscar la venta
+            venta = coleccion_ventas.find_one({'_id': ObjectId(id)})
+            if not venta:
+                flash('Pedido no encontrado', 'error')
+                return redirect(url_for('seguimiento_pedidos'))
+            
+            pedido = {
+                'venta_id': id,
+                'cliente_id': venta['cliente_id'],
+                'cliente_nombre': venta.get('cliente_nombre', ''),
+                'estado': nuevo_estado,
+                'fecha_pedido': venta['fecha_venta'],
+                'ultima_actualizacion': datetime.now(),
+                'comentarios': [{
+                    'fecha': venta['fecha_venta'],
+                    'mensaje': 'Pedido recibido',
+                    'usuario': 'Sistema'
+                }]
+            }
+        
+        # Actualizar estado
+        coleccion_pedidos.update_one(
+            {'venta_id': id},
+            {'$set': {
+                'estado': nuevo_estado,
+                'ultima_actualizacion': datetime.now()
+            }}
+        )
+        
+        # Agregar comentario si hay
+        if comentario:
+            nuevo_comentario = {
+                'fecha': datetime.now(),
+                'mensaje': comentario,
+                'usuario': session['usuario_nombre']
+            }
+            coleccion_pedidos.update_one(
+                {'venta_id': id},
+                {'$push': {'comentarios': nuevo_comentario}}
+            )
+        
+        # Actualizar estado en ventas también
+        coleccion_ventas.update_one(
+            {'_id': ObjectId(id)},
+            {'$set': {'estado': nuevo_estado}}
+        )
+        
+        flash(f'Estado del pedido actualizado a: {nuevo_estado}', 'success')
+        return redirect(url_for('seguimiento_pedidos'))
+        
+    except Exception as e:
+        flash(f'Error al actualizar pedido: {str(e)}', 'error')
+        return redirect(url_for('seguimiento_pedidos'))
+
+@app.route('/mi-seguimiento')
+@cliente_required
+def mi_seguimiento():
+    try:
+        # Obtener pedidos del cliente
+        pedidos = list(coleccion_ventas.find({
+            'cliente_id': session['cliente_id'],
+            'tipo': 'online'
+        }).sort('fecha_venta', -1))
+        
+        # Obtener información de seguimiento
+        for pedido in pedidos:
+            seguimiento = coleccion_pedidos.find_one({'venta_id': str(pedido['_id'])})
+            if seguimiento:
+                pedido['estado_seguimiento'] = seguimiento.get('estado', 'pendiente')
+                pedido['ultima_actualizacion'] = seguimiento.get('ultima_actualizacion', '')
+                pedido['comentarios'] = seguimiento.get('comentarios', [])
+            else:
+                pedido['estado_seguimiento'] = 'pendiente'
+                pedido['ultima_actualizacion'] = pedido['fecha_venta']
+                pedido['comentarios'] = []
+        
+        return render_template('mi_seguimiento.html', pedidos=pedidos)
+    except Exception as e:
+        flash(f'Error al cargar seguimiento: {str(e)}', 'error')
+        return render_template('mi_seguimiento.html', pedidos=[])
+
+# ----------------- API PARA SEGUIMIENTO (para cliente) -----------------
+
+@app.route('/api/seguimiento/<venta_id>')
+@cliente_required
+def api_seguimiento(venta_id):
+    try:
+        # Verificar que el pedido pertenece al cliente
+        venta = coleccion_ventas.find_one({
+            '_id': ObjectId(venta_id),
+            'cliente_id': session['cliente_id']
+        })
+        
+        if not venta:
+            return jsonify({'error': 'Pedido no encontrado'}), 404
+        
+        seguimiento = coleccion_pedidos.find_one({'venta_id': venta_id})
+        if not seguimiento:
+            return jsonify({
+                'venta_id': venta_id,
+                'estado': 'pendiente',
+                'ultima_actualizacion': venta['fecha_venta'].strftime('%Y-%m-%d %H:%M'),
+                'comentarios': []
+            })
+        
+        # Convertir a JSON serializable
+        seguimiento_data = {
+            'venta_id': seguimiento['venta_id'],
+            'estado': seguimiento['estado'],
+            'ultima_actualizacion': seguimiento['ultima_actualizacion'].strftime('%Y-%m-%d %H:%M'),
+            'comentarios': seguimiento.get('comentarios', [])
+        }
+        
+        return jsonify(seguimiento_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ----------------- COMPROBANTE DE VENTA -----------------
 
 @app.route('/ventas/<id>/comprobante')
 @login_required
@@ -779,7 +1158,7 @@ def comprobante_venta(id):
     except Exception as e:
         return f"Error al generar comprobante: {e}", 500
 
-# ----------------- CLIENTE - CATÁLOGO Y CARRITO CON IVA -----------------
+# ----------------- CLIENTE - CATÁLOGO CON IMÁGENES -----------------
 
 @app.route('/catalogo')
 @cliente_required
@@ -847,7 +1226,8 @@ def agregar_carrito():
                 'autor': libro.get('autor', ''),
                 'precio': libro['precio'],
                 'cantidad': cantidad,
-                'subtotal': libro['precio'] * cantidad
+                'subtotal': libro['precio'] * cantidad,
+                'imagen_url': libro.get('imagen_url', '')
             })
         
         session['carrito'] = carrito
@@ -1002,11 +1382,27 @@ def comprar_carrito():
             'iva': iva_venta,
             'total': total_venta,
             'fecha_venta': datetime.now(),
-            'estado': 'completada',
+            'estado': 'pendiente',
             'tipo': 'online'
         }
         
         resultado = coleccion_ventas.insert_one(venta)
+        
+        # Crear registro de seguimiento
+        seguimiento = {
+            'venta_id': str(resultado.inserted_id),
+            'cliente_id': session['cliente_id'],
+            'cliente_nombre': session['cliente_nombre'],
+            'estado': 'pendiente',
+            'fecha_pedido': datetime.now(),
+            'ultima_actualizacion': datetime.now(),
+            'comentarios': [{
+                'fecha': datetime.now(),
+                'mensaje': 'Pedido recibido',
+                'usuario': 'Sistema'
+            }]
+        }
+        coleccion_pedidos.insert_one(seguimiento)
         
         # Vaciar carrito después de la compra
         session['carrito'] = []
@@ -1019,6 +1415,7 @@ def comprar_carrito():
         flash(f'Error al procesar compra: {e}', 'error')
         return redirect(url_for('ver_carrito'))
 
+# Añadir esta función que faltaba
 @app.route('/comprar-directo', methods=['POST'])
 @cliente_required
 def comprar_directo():
@@ -1060,7 +1457,7 @@ def comprar_directo():
             'iva': iva,
             'total': total,
             'fecha_venta': datetime.now(),
-            'estado': 'completada',
+            'estado': 'pendiente',
             'tipo': 'online'
         }
         
@@ -1072,6 +1469,23 @@ def comprar_directo():
         )
         
         resultado = coleccion_ventas.insert_one(venta)
+        
+        # Crear registro de seguimiento
+        seguimiento = {
+            'venta_id': str(resultado.inserted_id),
+            'cliente_id': session['cliente_id'],
+            'cliente_nombre': session['cliente_nombre'],
+            'estado': 'pendiente',
+            'fecha_pedido': datetime.now(),
+            'ultima_actualizacion': datetime.now(),
+            'comentarios': [{
+                'fecha': datetime.now(),
+                'mensaje': 'Pedido recibido',
+                'usuario': 'Sistema'
+            }]
+        }
+        coleccion_pedidos.insert_one(seguimiento)
+        
         flash(f'¡Compra realizada exitosamente! Total con IVA: ${total:.2f}', 'success')
         return redirect(url_for('ver_compra', id=resultado.inserted_id))
         
@@ -1079,15 +1493,20 @@ def comprar_directo():
         flash(f'Error al procesar compra: {e}', 'error')
         return redirect(url_for('catalogo_cliente'))
 
-# ----------------- MIS COMPRAS - CORREGIDA COMPLETAMENTE -----------------
+# ----------------- MIS COMPRAS CON CANCELACIONES -----------------
 
 @app.route('/mis-compras')
 @cliente_required
 def mis_compras():
     try:
-        # CORREGIDO: Convertir el cursor a lista correctamente
         ventas_cursor = coleccion_ventas.find({'cliente_id': session['cliente_id']})
-        ventas = list(ventas_cursor)  # Convertir cursor a lista
+        ventas = list(ventas_cursor)
+        
+        for venta in ventas:
+            # Verificar cancelación
+            cancelacion = coleccion_cancelaciones.find_one({'venta_id': str(venta['_id'])})
+            venta['cancelada'] = cancelacion is not None
+            venta['puede_cancelar'] = puede_cancelar_venta(venta['fecha_venta'])
         
         # Ordenar por fecha descendente
         ventas.sort(key=lambda x: x['fecha_venta'], reverse=True)
@@ -1097,18 +1516,72 @@ def mis_compras():
         flash(f'Error al cargar compras: {str(e)}', 'error')
         return render_template('mis_compras.html', ventas=[])
 
-@app.route('/mi-compra/<id>')
+@app.route('/cancelar-mi-compra/<id>', methods=['POST'])
 @cliente_required
-def ver_compra(id):
+def cancelar_mi_compra(id):
     try:
-        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session['cliente_id']})
+        venta = coleccion_ventas.find_one({
+            '_id': ObjectId(id),
+            'cliente_id': session['cliente_id']
+        })
+        
         if not venta:
             flash('Compra no encontrada', 'error')
             return redirect(url_for('mis_compras'))
         
-        return render_template('ver_compra.html', venta=venta)
+        # Verificar si ya está cancelada
+        cancelacion_existente = coleccion_cancelaciones.find_one({'venta_id': id})
+        if cancelacion_existente:
+            flash('Esta compra ya ha sido cancelada', 'error')
+            return redirect(url_for('mis_compras'))
+        
+        # Verificar tiempo (15 minutos)
+        if not puede_cancelar_venta(venta['fecha_venta']):
+            flash('No se puede cancelar la compra después de 15 minutos', 'error')
+            return redirect(url_for('mis_compras'))
+        
+        razon = request.form.get('razon', 'Cancelación solicitada por el cliente')
+        
+        # Crear registro de cancelación
+        cancelacion = {
+            'venta_id': id,
+            'cliente_id': session['cliente_id'],
+            'cliente_nombre': session['cliente_nombre'],
+            'total_venta': venta['total'],
+            'razon': razon,
+            'cancelado_por': session['cliente_id'],
+            'cancelado_por_nombre': session['cliente_nombre'],
+            'fecha_cancelacion': datetime.now(),
+            'fecha_venta_original': venta['fecha_venta']
+        }
+        
+        # Devolver stock de libros
+        for item in venta.get('items', []):
+            libro_id = item['libro_id']
+            cantidad = item['cantidad']
+            
+            libro = coleccion_libros.find_one({'_id': ObjectId(libro_id)})
+            if libro:
+                nuevo_stock = libro.get('stock', 0) + cantidad
+                coleccion_libros.update_one(
+                    {'_id': ObjectId(libro_id)},
+                    {'$set': {'stock': nuevo_stock}}
+                )
+        
+        # Guardar cancelación
+        coleccion_cancelaciones.insert_one(cancelacion)
+        
+        # Marcar venta como cancelada
+        coleccion_ventas.update_one(
+            {'_id': ObjectId(id)},
+            {'$set': {'estado': 'cancelada'}}
+        )
+        
+        flash('Compra cancelada exitosamente. Stock devuelto a inventario.', 'success')
+        return redirect(url_for('mis_compras'))
+        
     except Exception as e:
-        flash(f'Error al cargar compra: {e}', 'error')
+        flash(f'Error al cancelar compra: {str(e)}', 'error')
         return redirect(url_for('mis_compras'))
 
 # ----------------- COMPROBANTE PARA CLIENTES -----------------
@@ -1236,6 +1709,131 @@ def comprobante_cliente(id):
     except Exception as e:
         return f"Error al generar comprobante: {e}", 500
 
+# ----------------- VER COMPRA -----------------
+
+@app.route('/mi-compra/<id>')
+@cliente_required
+def ver_compra(id):
+    try:
+        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session['cliente_id']})
+        if not venta:
+            flash('Compra no encontrada', 'error')
+            return redirect(url_for('mis_compras'))
+        
+        return render_template('ver_compra.html', venta=venta)
+    except Exception as e:
+        flash(f'Error al cargar compra: {e}', 'error')
+        return redirect(url_for('mis_compras'))
+
+# ----------------- REPORTE DE VENTAS EN PDF -----------------
+
+@app.route('/reporte-ventas-pdf')
+@login_required
+def reporte_ventas_pdf():
+    try:
+        tipo = request.args.get('tipo', 'dia')
+        fecha_str = request.args.get('fecha', '')
+        fecha_inicio = request.args.get('inicio', '')
+        fecha_fin = request.args.get('fin', '')
+        
+        # Construir consulta según el tipo de reporte
+        query = {}
+        
+        if tipo == 'dia' and fecha_str:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+            query['fecha_venta'] = {
+                '$gte': fecha,
+                '$lt': fecha + timedelta(days=1)
+            }
+        elif tipo == 'mes' and fecha_str:
+            fecha = datetime.strptime(fecha_str, '%Y-%m')
+            next_month = fecha.replace(day=28) + timedelta(days=4)
+            next_month = next_month.replace(day=1)
+            query['fecha_venta'] = {
+                '$gte': fecha,
+                '$lt': next_month
+            }
+        elif tipo == 'anio' and fecha_str:
+            año = int(fecha_str)
+            query['fecha_venta'] = {
+                '$gte': datetime(año, 1, 1),
+                '$lt': datetime(año + 1, 1, 1)
+            }
+        elif tipo == 'personalizado' and fecha_inicio and fecha_fin:
+            inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            fin = datetime.strptime(fecha_fin, '%Y-%m-%d') + timedelta(days=1)
+            query['fecha_venta'] = {
+                '$gte': inicio,
+                '$lt': fin
+            }
+        
+        # Obtener ventas filtradas
+        ventas = list(coleccion_ventas.find(query).sort('fecha_venta', -1))
+        
+        # Crear PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        
+        # Título del reporte
+        titulo = f"Reporte de Ventas - {tipo.capitalize()}"
+        if fecha_str:
+            titulo += f" - {fecha_str}"
+        elements.append(Paragraph(titulo, styles['Title']))
+        elements.append(Spacer(1, 12))
+        
+        # Estadísticas
+        total_ventas = len(ventas)
+        total_ingresos = sum(venta.get('total', 0) for venta in ventas)
+        
+        elements.append(Paragraph(f"Total de Ventas: {total_ventas}", styles['Normal']))
+        elements.append(Paragraph(f"Ingresos Totales: ${total_ingresos:.2f}", styles['Normal']))
+        elements.append(Spacer(1, 12))
+        
+        # Tabla de ventas
+        if ventas:
+            data = [['Folio', 'Cliente', 'Fecha', 'Total', 'Tipo']]
+            
+            for venta in ventas:
+                data.append([
+                    str(venta.get('_id', ''))[:8] + '...',
+                    venta.get('cliente_nombre', ''),
+                    venta.get('fecha_venta', datetime.now()).strftime('%d/%m/%Y %H:%M'),
+                    f"${venta.get('total', 0):.2f}",
+                    venta.get('tipo', '')
+                ])
+            
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+        else:
+            elements.append(Paragraph("No hay ventas en el período seleccionado", styles['Normal']))
+        
+        # Generar PDF
+        doc.build(elements)
+        
+        buffer.seek(0)
+        response = make_response(buffer.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=reporte_ventas_{tipo}_{fecha_str}.pdf'
+        
+        return response
+        
+    except Exception as e:
+        return f"Error al generar reporte: {str(e)}", 500
+
 # ----------------- REPORTES DE VENTAS -----------------
 
 @app.route('/reportes')
@@ -1299,7 +1897,7 @@ def reportes_ventas():
                 productos_vendidos[producto_id]['cantidad'] += item.get('cantidad', 0)
                 productos_vendidos[producto_id]['total'] += item.get('subtotal', 0)
         
-        top_productos = sorted(productos_vendidos.values(), key=lambda x: x['cantidad'], reverse=True)[:5]
+        top_productos = sorted(productos_vendidos.values(), key=lambda x: x['cantidad'], reverse=True)[:10]
         
         # Ventas por día (para gráfico)
         ventas_por_dia = {}

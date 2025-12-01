@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Seguimiento de Pedidos - Biblioteca Digital</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --warning: #f8961e;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --border-radius: 12px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-icon {
+            background: rgba(255, 255, 255, 0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 16px;
+            border-radius: 50px;
+            transition: var(--transition);
+        }
+
+        .header .user-profile:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .header .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-menu {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .nav-menu a {
+            margin-right: 20px;
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 30px auto;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        h1 {
+            font-size: 28px;
+            color: var(--dark);
+            margin-bottom: 30px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 i {
+            color: var(--primary);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-warning {
+            background: rgba(248, 150, 30, 0.1);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .alert-success {
+            background: rgba(76, 201, 240, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .alert-error {
+            background: rgba(247, 37, 133, 0.1);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 20px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .table th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tr:hover {
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .badge-info {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .badge-admin {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .badge-empleado {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--gray-light);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            width: 500px;
+            max-width: 90%;
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .close {
+            color: var(--gray);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--danger);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            margin: 20px 0;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-light);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 2px solid white;
+            box-shadow: 0 0 0 3px var(--primary);
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .timeline-content {
+            background: var(--light);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Estados */
+        .estado-pendiente {
+            background: var(--warning);
+            color: white;
+        }
+
+        .estado-proceso {
+            background: var(--info);
+            color: white;
+        }
+
+        .estado-enviado {
+            background: var(--success);
+            color: white;
+        }
+
+        .estado-entregado {
+            background: var(--primary);
+            color: white;
+        }
+
+        .estado-cancelado {
+            background: var(--danger);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{{ url_for('dashboard') }}" class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-book-open"></i>
+            </div>
+            Biblioteca Digital
+        </a>
+        <div class="user-profile">
+            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="User Avatar">
+            <span>{{ session.usuario_nombre }}</span>
+            {% if session.usuario_rol == 'administrador' %}
+            <span class="badge badge-admin">Admin</span>
+            {% else %}
+            <span class="badge badge-empleado">Empleado</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="nav-menu">
+        <a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-bar"></i> Dashboard</a>
+        <a href="{{ url_for('listar_libros') }}"><i class="fas fa-book"></i> Libros</a>
+        <a href="{{ url_for('listar_clientes') }}"><i class="fas fa-users"></i> Clientes</a>
+        <a href="{{ url_for('listar_ventas') }}"><i class="fas fa-shopping-cart"></i> Ventas</a>
+        <a href="{{ url_for('seguimiento_pedidos') }}" class="active"><i class="fas fa-truck"></i> Seguimiento</a>
+        {% if session.usuario_rol == 'administrador' %}
+        <a href="{{ url_for('listar_usuarios') }}"><i class="fas fa-user-cog"></i> Usuarios</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" style="float: right; color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    </div>
+
+    <div class="container">
+        <div class="header-actions">
+            <h1>
+                <i class="fas fa-truck"></i>
+                Seguimiento de Pedidos Online
+            </h1>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if pedidos %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Estado Actual</th>
+                        <th>Última Actualización</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos %}
+                    <tr>
+                        <td><strong>#{{ pedido._id }}</strong></td>
+                        <td>
+                            <div>
+                                <strong>{{ pedido.cliente_nombre }}</strong>
+                                <div style="font-size: 12px; color: var(--gray);">{{ pedido.cliente_email }}</div>
+                            </div>
+                        </td>
+                        <td>{{ pedido.fecha_venta.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td><strong>${{ "%.2f"|format(pedido.total) }}</strong></td>
+                        <td>
+                            {% if pedido.estado_seguimiento == 'pendiente' %}
+                            <span class="badge badge-warning">Pendiente</span>
+                            {% elif pedido.estado_seguimiento == 'en_proceso' %}
+                            <span class="badge badge-info">En Proceso</span>
+                            {% elif pedido.estado_seguimiento == 'enviado' %}
+                            <span class="badge badge-success">Enviado</span>
+                            {% elif pedido.estado_seguimiento == 'entregado' %}
+                            <span class="badge badge-primary">Entregado</span>
+                            {% else %}
+                            <span class="badge badge-warning">{{ pedido.estado_seguimiento }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pedido.ultima_actualizacion %}
+                            {{ pedido.ultima_actualizacion.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                            {{ pedido.fecha_venta.strftime('%d/%m/%Y %H:%M') }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-info btn-sm" onclick="verSeguimiento('{{ pedido._id }}')" title="Ver Seguimiento">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="actualizarEstado('{{ pedido._id }}')" title="Actualizar Estado">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <a href="{{ url_for('comprobante_venta', id=pedido._id) }}" class="btn btn-primary btn-sm" title="Generar PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-truck"></i>
+            <h3>No hay pedidos pendientes</h3>
+            <p>Todos los pedidos han sido procesados o no hay pedidos online recientes.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal para ver seguimiento -->
+    <div id="modalSeguimiento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-history"></i>
+                    Historial de Seguimiento
+                </h3>
+                <span class="close" onclick="cerrarModal('modalSeguimiento')">&times;</span>
+            </div>
+            
+            <div id="seguimientoContent">
+                <!-- Contenido cargado dinámicamente -->
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning" onclick="cerrarModal('modalSeguimiento')">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para actualizar estado -->
+    <div id="modalActualizar" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-edit"></i>
+                    Actualizar Estado del Pedido
+                </h3>
+                <span class="close" onclick="cerrarModal('modalActualizar')">&times;</span>
+            </div>
+            
+            <form id="formActualizar" method="POST">
+                <input type="hidden" id="pedidoId" name="pedido_id">
+                
+                <div class="form-group">
+                    <label class="form-label">Nuevo Estado</label>
+                    <select class="form-control" id="nuevoEstado" name="estado" required>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="en_proceso">En Proceso</option>
+                        <option value="enviado">Enviado</option>
+                        <option value="entregado">Entregado</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Comentario (opcional)</label>
+                    <textarea class="form-control" id="comentario" name="comentario" rows="3"
+                              placeholder="Agregar comentario sobre el cambio de estado..."></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-warning" onclick="cerrarModal('modalActualizar')">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Actualizar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar notificaciones temporales
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => {
+                    alert.remove();
+                }, 500);
+            }, 5000);
+        });
+
+        // Funciones para modales
+        function verSeguimiento(pedidoId) {
+            // Cargar datos del seguimiento
+            fetch(`/api/seguimiento/${pedidoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    
+                    const content = document.getElementById('seguimientoContent');
+                    let html = `
+                        <div>
+                            <h4>Pedido: #${data.venta_id}</h4>
+                            <p><strong>Estado actual:</strong> <span class="badge badge-${getBadgeColor(data.estado)}">${formatEstado(data.estado)}</span></p>
+                            <p><strong>Última actualización:</strong> ${data.ultima_actualizacion}</p>
+                        </div>
+                        
+                        <div class="timeline">
+                            <h5>Historial:</h5>
+                    `;
+                    
+                    if (data.comentarios && data.comentarios.length > 0) {
+                        // Ordenar comentarios por fecha (más reciente primero)
+                        data.comentarios.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                        
+                        data.comentarios.forEach(comentario => {
+                            const fecha = new Date(comentario.fecha);
+                            html += `
+                                <div class="timeline-item">
+                                    <div class="timeline-date">
+                                        ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>${comentario.usuario}:</strong>
+                                        <p>${comentario.mensaje}</p>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += `<p>No hay historial disponible.</p>`;
+                    }
+                    
+                    html += `</div>`;
+                    content.innerHTML = html;
+                    
+                    // Mostrar modal
+                    document.getElementById('modalSeguimiento').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al cargar el seguimiento');
+                });
+        }
+
+        function actualizarEstado(pedidoId) {
+            document.getElementById('pedidoId').value = pedidoId;
+            document.getElementById('modalActualizar').style.display = 'block';
+        }
+
+        function cerrarModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            
+            if (modalId === 'modalActualizar') {
+                document.getElementById('comentario').value = '';
+            }
+        }
+
+        // Configurar formulario de actualización
+        document.getElementById('formActualizar').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const pedidoId = document.getElementById('pedidoId').value;
+            const nuevoEstado = document.getElementById('nuevoEstado').value;
+            const comentario = document.getElementById('comentario').value;
+            
+            if (!nuevoEstado) {
+                alert('Por favor, selecciona un estado.');
+                return;
+            }
+            
+            // Enviar formulario
+            const formData = new FormData();
+            formData.append('estado', nuevoEstado);
+            if (comentario.trim()) {
+                formData.append('comentario', comentario);
+            }
+            
+            fetch(`/actualizar-estado-pedido/${pedidoId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Error al actualizar el estado del pedido.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al actualizar el estado del pedido.');
+            });
+        });
+
+        // Funciones auxiliares
+        function getBadgeColor(estado) {
+            switch(estado) {
+                case 'pendiente': return 'warning';
+                case 'en_proceso': return 'info';
+                case 'enviado': return 'success';
+                case 'entregado': return 'primary';
+                default: return 'warning';
+            }
+        }
+
+        function formatEstado(estado) {
+            switch(estado) {
+                case 'pendiente': return 'Pendiente';
+                case 'en_proceso': return 'En Proceso';
+                case 'enviado': return 'Enviado';
+                case 'entregado': return 'Entregado';
+                default: return estado;
+            }
+        }
+
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

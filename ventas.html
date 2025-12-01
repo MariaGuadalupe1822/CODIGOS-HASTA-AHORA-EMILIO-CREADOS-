@@ -237,6 +237,11 @@
             color: white;
         }
 
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
         .btn-info {
             background: var(--secondary);
             color: white;
@@ -261,6 +266,16 @@
 
         .badge-warning {
             background-color: var(--warning);
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .badge-info {
+            background-color: var(--secondary);
             color: white;
         }
 
@@ -348,6 +363,186 @@
             color: var(--gray);
             font-weight: 500;
         }
+
+        /* Nuevos estilos para reportes */
+        .reportes-section {
+            background: var(--light);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            margin-bottom: 30px;
+            border: 1px solid var(--gray-light);
+        }
+
+        .reportes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .reportes-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filtros-reportes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filtro-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filtro-label {
+            font-weight: 500;
+            color: var(--dark);
+            font-size: 14px;
+        }
+
+        .filtro-select, .filtro-input {
+            padding: 10px 12px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .filtro-select:focus, .filtro-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn-generar {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-generar:hover {
+            background: #3ab0d9;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-light);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .page-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Modal de cancelación */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            width: 500px;
+            max-width: 90%;
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .close {
+            color: var(--gray);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--danger);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -374,6 +569,7 @@
         <a href="{{ url_for('listar_libros') }}"><i class="fas fa-book"></i> Libros</a>
         <a href="{{ url_for('listar_clientes') }}"><i class="fas fa-users"></i> Clientes</a>
         <a href="{{ url_for('listar_ventas') }}" class="active"><i class="fas fa-shopping-cart"></i> Ventas</a>
+        <a href="{{ url_for('seguimiento_pedidos') }}"><i class="fas fa-truck"></i> Seguimiento</a>
         {% if session.usuario_rol == 'administrador' %}
         <a href="{{ url_for('listar_usuarios') }}"><i class="fas fa-user-cog"></i> Usuarios</a>
         {% endif %}
@@ -386,9 +582,14 @@
                 <i class="fas fa-shopping-cart"></i>
                 Gestión de Ventas
             </h1>
-            <a href="{{ url_for('nueva_venta') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Nueva Venta
-            </a>
+            <div>
+                <a href="{{ url_for('nueva_venta') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nueva Venta
+                </a>
+                <a href="{{ url_for('seguimiento_pedidos') }}" class="btn btn-info">
+                    <i class="fas fa-truck"></i> Seguimiento
+                </a>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -412,6 +613,64 @@
                 <div class="stats-number">${{ "%.2f"|format(ventas|sum(attribute='total') if ventas else 0) }}</div>
                 <div class="stats-label">Ingresos Totales</div>
             </div>
+            <div class="stats-card">
+                <div class="stats-number">{{ ventas|selectattr('cancelada')|list|length }}</div>
+                <div class="stats-label">Ventas Canceladas</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN NUEVA: REPORTES DE VENTAS -->
+        <div class="reportes-section">
+            <div class="reportes-header">
+                <h2 class="reportes-title">
+                    <i class="fas fa-chart-line"></i>
+                    Reportes de Ventas
+                </h2>
+            </div>
+            
+            <div class="filtros-reportes">
+                <div class="filtro-group">
+                    <label class="filtro-label">Tipo de Reporte</label>
+                    <select class="filtro-select" id="tipoReporte">
+                        <option value="dia">Reporte del Día</option>
+                        <option value="mes">Reporte del Mes</option>
+                        <option value="anio">Reporte del Año</option>
+                        <option value="personalizado">Personalizado</option>
+                    </select>
+                </div>
+                
+                <div class="filtro-group" id="filtroDia">
+                    <label class="filtro-label">Seleccionar Día</label>
+                    <input type="date" class="filtro-input" id="fechaDia" value="{{ hoy }}">
+                </div>
+                
+                <div class="filtro-group" id="filtroMes" style="display: none;">
+                    <label class="filtro-label">Seleccionar Mes</label>
+                    <input type="month" class="filtro-input" id="fechaMes" value="{{ mes_actual }}">
+                </div>
+                
+                <div class="filtro-group" id="filtroAnio" style="display: none;">
+                    <label class="filtro-label">Seleccionar Año</label>
+                    <select class="filtro-select" id="fechaAnio">
+                        {% for year in range(2020, 2031) %}
+                        <option value="{{ year }}" {% if year == anio_actual %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filtro-group" id="filtroPersonalizado" style="display: none;">
+                    <label class="filtro-label">Rango de Fechas</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="date" class="filtro-input" id="fechaInicio" placeholder="Desde">
+                        <input type="date" class="filtro-input" id="fechaFin" placeholder="Hasta">
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn-generar" onclick="generarReporte()">
+                <i class="fas fa-file-pdf"></i>
+                Generar Reporte PDF
+            </button>
         </div>
 
         {% if ventas %}
@@ -425,6 +684,7 @@
                         <th>Fecha</th>
                         <th>Total</th>
                         <th>Tipo</th>
+                        <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -449,17 +709,63 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if venta.cancelada %}
+                            <span class="badge badge-danger">Cancelada</span>
+                            {% elif venta.estado == 'pendiente' %}
+                            <span class="badge badge-warning">Pendiente</span>
+                            {% elif venta.estado == 'en_proceso' %}
+                            <span class="badge badge-info">En Proceso</span>
+                            {% elif venta.estado == 'enviado' %}
+                            <span class="badge badge-info">Enviado</span>
+                            {% else %}
+                            <span class="badge badge-success">Completada</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             <div style="display: flex; gap: 8px;">
                                 <!-- SOLO SE MANTIENE EL BOTÓN PDF -->
-                                <a href="{{ url_for('comprobante_venta', id=venta._id) }}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-file-pdf"></i> PDF
+                                <a href="{{ url_for('comprobante_venta', id=venta._id) }}" class="btn btn-warning btn-sm" title="Generar PDF">
+                                    <i class="fas fa-file-pdf"></i>
                                 </a>
+                                
+                                {% if not venta.cancelada and venta.puede_cancelar and session.usuario_rol == 'administrador' %}
+                                <button class="btn btn-danger btn-sm" onclick="mostrarModalCancelacion('{{ venta._id }}')" title="Cancelar Venta">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if venta.cancelada %}
+                                <span class="badge badge-danger" title="Cancelada: {{ venta.razon_cancelacion }}">
+                                    <i class="fas fa-ban"></i>
+                                </span>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="pagination">
+            {% if pagina > 1 %}
+            <a href="{{ url_for('listar_ventas', pagina=pagina-1) }}" class="page-btn">
+                <i class="fas fa-chevron-left"></i> Anterior
+            </a>
+            {% endif %}
+            
+            {% for p in range(1, total_paginas+1) %}
+            <a href="{{ url_for('listar_ventas', pagina=p) }}" class="page-btn {% if p == pagina %}active{% endif %}">
+                {{ p }}
+            </a>
+            {% endfor %}
+            
+            {% if pagina < total_paginas %}
+            <a href="{{ url_for('listar_ventas', pagina=pagina+1) }}" class="page-btn">
+                Siguiente <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
         </div>
         {% else %}
         <div class="empty-state">
@@ -473,6 +779,44 @@
         {% endif %}
     </div>
 
+    <!-- Modal de Cancelación -->
+    <div id="modalCancelacion" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Cancelar Venta
+                </h3>
+                <span class="close" onclick="cerrarModal()">&times;</span>
+            </div>
+            
+            <form id="formCancelacion" method="POST">
+                <input type="hidden" id="ventaId" name="venta_id">
+                
+                <div class="form-group">
+                    <label class="form-label">Razón de la cancelación</label>
+                    <textarea class="form-control" id="razonCancelacion" name="razon" rows="4" required
+                              placeholder="Ingrese la razón de la cancelación..."></textarea>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Importante:</strong> Al cancelar una venta, el stock de los libros será devuelto automáticamente. 
+                    Esta acción solo se puede realizar dentro de los primeros 15 minutos después de la venta.
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-warning" onclick="cerrarModal()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-check"></i> Confirmar Cancelación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Mostrar notificaciones temporales
         const alerts = document.querySelectorAll('.alert');
@@ -484,6 +828,117 @@
                     alert.remove();
                 }, 500);
             }, 5000);
+        });
+
+        // Control de filtros de reportes
+        document.getElementById('tipoReporte').addEventListener('change', function() {
+            const tipo = this.value;
+            
+            // Ocultar todos los filtros primero
+            document.getElementById('filtroDia').style.display = 'none';
+            document.getElementById('filtroMes').style.display = 'none';
+            document.getElementById('filtroAnio').style.display = 'none';
+            document.getElementById('filtroPersonalizado').style.display = 'none';
+            
+            // Mostrar el filtro correspondiente
+            if (tipo === 'dia') {
+                document.getElementById('filtroDia').style.display = 'flex';
+            } else if (tipo === 'mes') {
+                document.getElementById('filtroMes').style.display = 'flex';
+            } else if (tipo === 'anio') {
+                document.getElementById('filtroAnio').style.display = 'flex';
+            } else if (tipo === 'personalizado') {
+                document.getElementById('filtroPersonalizado').style.display = 'flex';
+            }
+        });
+
+        // Función para generar reporte
+        function generarReporte() {
+            const tipo = document.getElementById('tipoReporte').value;
+            let url = '{{ url_for("reporte_ventas_pdf") }}?tipo=' + tipo;
+            
+            if (tipo === 'dia') {
+                const fecha = document.getElementById('fechaDia').value;
+                url += '&fecha=' + fecha;
+            } else if (tipo === 'mes') {
+                const fecha = document.getElementById('fechaMes').value;
+                url += '&fecha=' + fecha;
+            } else if (tipo === 'anio') {
+                const fecha = document.getElementById('fechaAnio').value;
+                url += '&fecha=' + fecha;
+            } else if (tipo === 'personalizado') {
+                const inicio = document.getElementById('fechaInicio').value;
+                const fin = document.getElementById('fechaFin').value;
+                if (inicio && fin) {
+                    url += '&inicio=' + inicio + '&fin=' + fin;
+                } else {
+                    alert('Por favor, selecciona ambas fechas para el rango personalizado.');
+                    return;
+                }
+            }
+            
+            // Abrir el reporte en nueva pestaña
+            window.open(url, '_blank');
+        }
+
+        // Funciones para modal de cancelación
+        function mostrarModalCancelacion(ventaId) {
+            document.getElementById('ventaId').value = ventaId;
+            document.getElementById('modalCancelacion').style.display = 'block';
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalCancelacion').style.display = 'none';
+            document.getElementById('razonCancelacion').value = '';
+        }
+
+        // Configurar formulario de cancelación
+        document.getElementById('formCancelacion').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const ventaId = document.getElementById('ventaId').value;
+            const razon = document.getElementById('razonCancelacion').value;
+            
+            if (!razon.trim()) {
+                alert('Por favor, ingresa una razón para la cancelación.');
+                return;
+            }
+            
+            // Enviar formulario
+            const formData = new FormData();
+            formData.append('razon', razon);
+            
+            fetch(`/ventas/cancelar/${ventaId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Error al cancelar la venta.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cancelar la venta.');
+            });
+        });
+
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalCancelacion');
+            if (event.target === modal) {
+                cerrarModal();
+            }
+        }
+
+        // Inicializar con el filtro del día visible
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('filtroDia').style.display = 'flex';
         });
     </script>
 </body>

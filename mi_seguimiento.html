@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mi Seguimiento - Biblioteca Digital</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --warning: #f8961e;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --border-radius: 12px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-icon {
+            background: rgba(255, 255, 255, 0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 16px;
+            border-radius: 50px;
+            transition: var(--transition);
+        }
+
+        .header .user-profile:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .header .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-menu {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .nav-menu a {
+            margin-right: 20px;
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 30px auto;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        h1 {
+            font-size: 28px;
+            color: var(--dark);
+            margin-bottom: 30px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 i {
+            color: var(--primary);
+        }
+
+        h2 {
+            font-size: 22px;
+            color: var(--dark);
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2 i {
+            color: var(--secondary);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-warning {
+            background: rgba(248, 150, 30, 0.1);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .alert-success {
+            background: rgba(76, 201, 240, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .alert-error {
+            background: rgba(247, 37, 133, 0.1);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .alert-info {
+            background: rgba(67, 97, 238, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 30px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .table th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tr:hover {
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .badge-info {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .badge-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--gray-light);
+        }
+
+        /* Tarjetas de seguimiento */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-light);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -34px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px var(--primary);
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .timeline-content {
+            background: var(--light);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary);
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: var(--gray);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .timeline-message {
+            font-size: 14px;
+            color: var(--dark);
+        }
+
+        /* Estado actual */
+        .current-status {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin-bottom: 30px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+
+        .status-icon.pendiente {
+            background: var(--warning);
+        }
+
+        .status-icon.en_proceso {
+            background: var(--info);
+        }
+
+        .status-icon.enviado {
+            background: var(--secondary);
+        }
+
+        .status-icon.entregado {
+            background: var(--success);
+        }
+
+        .status-details h3 {
+            margin-bottom: 5px;
+            font-size: 18px;
+        }
+
+        .status-details p {
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            width: 500px;
+            max-width: 90%;
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .close {
+            color: var(--gray);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--danger);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{{ url_for('catalogo_cliente') }}" class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-book-open"></i>
+            </div>
+            Biblioteca Digital
+        </a>
+        <div class="user-profile">
+            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="User Avatar">
+            <span>{{ session.cliente_nombre }}</span>
+            <span class="badge badge-primary">Cliente</span>
+        </div>
+    </div>
+
+    <div class="nav-menu">
+        <a href="{{ url_for('catalogo_cliente') }}"><i class="fas fa-book"></i> Catálogo</a>
+        <a href="{{ url_for('ver_carrito') }}"><i class="fas fa-shopping-cart"></i> Carrito</a>
+        <a href="{{ url_for('mis_compras') }}"><i class="fas fa-receipt"></i> Mis Compras</a>
+        <a href="{{ url_for('mi_seguimiento') }}" class="active"><i class="fas fa-truck"></i> Mi Seguimiento</a>
+        <a href="{{ url_for('logout') }}" style="float: right; color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    </div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1>
+                <i class="fas fa-truck"></i>
+                Seguimiento de Mis Pedidos
+            </h1>
+            <a href="{{ url_for('mis_compras') }}" class="btn btn-primary">
+                <i class="fas fa-receipt"></i> Ver Mis Compras
+            </a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if pedidos %}
+            {% for pedido in pedidos %}
+            <div class="current-status" id="pedido-{{ pedido._id }}">
+                <div class="status-header">
+                    <div class="status-info">
+                        <div class="status-icon {{ pedido.estado_seguimiento }}">
+                            {% if pedido.estado_seguimiento == 'pendiente' %}
+                                <i class="fas fa-clock"></i>
+                            {% elif pedido.estado_seguimiento == 'en_proceso' %}
+                                <i class="fas fa-cogs"></i>
+                            {% elif pedido.estado_seguimiento == 'enviado' %}
+                                <i class="fas fa-shipping-fast"></i>
+                            {% elif pedido.estado_seguimiento == 'entregado' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% else %}
+                                <i class="fas fa-box"></i>
+                            {% endif %}
+                        </div>
+                        <div class="status-details">
+                            <h3>
+                                Pedido #{{ pedido._id }}
+                                <span class="badge badge-{{ 'warning' if pedido.estado_seguimiento == 'pendiente' else 'info' if pedido.estado_seguimiento == 'en_proceso' else 'secondary' if pedido.estado_seguimiento == 'enviado' else 'success' }}">
+                                    {{ pedido.estado_seguimiento|upper }}
+                                </span>
+                            </h3>
+                            <p>
+                                <i class="fas fa-calendar"></i> 
+                                Fecha: {{ pedido.fecha_venta.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                            <p>
+                                <i class="fas fa-money-bill-wave"></i>
+                                Total: ${{ "%.2f"|format(pedido.total) }}
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('ver_compra', id=pedido._id) }}" class="btn btn-sm btn-info">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </a>
+                        <a href="{{ url_for('comprobante_cliente', id=pedido._id) }}" class="btn btn-sm btn-warning">
+                            <i class="fas fa-file-pdf"></i> Comprobante
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Historial de actualizaciones -->
+                <h2 style="margin-top: 30px; margin-bottom: 15px;">
+                    <i class="fas fa-history"></i>
+                    Historial del Pedido
+                </h2>
+                
+                <div class="timeline">
+                    {% if pedido.comentarios %}
+                        {% for comentario in pedido.comentarios|sort(attribute='fecha', reverse=true) %}
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-date">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    {{ comentario.fecha.strftime('%d/%m/%Y %H:%M') if comentario.fecha is string else comentario.fecha.strftime('%d/%m/%Y %H:%M') }}
+                                </div>
+                                <div class="timeline-message">
+                                    <strong>{{ comentario.usuario }}:</strong> {{ comentario.mensaje }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-date">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    {{ pedido.fecha_venta.strftime('%d/%m/%Y %H:%M') }}
+                                </div>
+                                <div class="timeline-message">
+                                    <strong>Sistema:</strong> Pedido recibido y en proceso de verificación.
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Información de contacto -->
+                <div class="alert alert-info" style="margin-top: 20px;">
+                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                        <i class="fas fa-info-circle" style="font-size: 20px; margin-top: 2px;"></i>
+                        <div>
+                            <h4 style="margin-bottom: 5px;">¿Tienes dudas sobre tu pedido?</h4>
+                            <p style="margin-bottom: 0;">
+                                <strong>Contacto:</strong> biblioteca@digital.com | 
+                                <strong>Teléfono:</strong> (55) 1234-5678 |
+                                <strong>Horario:</strong> Lunes a Viernes 9:00 - 18:00 hrs
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {% if not loop.last %}
+                <hr style="margin: 40px 0; border: none; border-top: 2px dashed var(--gray-light);">
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-truck"></i>
+                <h3>No tienes pedidos en seguimiento</h3>
+                <p>Tus pedidos aparecerán aquí una vez que realices una compra online.</p>
+                <a href="{{ url_for('catalogo_cliente') }}" class="btn btn-primary" style="margin-top: 16px;">
+                    <i class="fas fa-shopping-cart"></i> Ir al Catálogo
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Mostrar notificaciones temporales
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => {
+                    alert.remove();
+                }, 500);
+            }, 5000);
+        });
+
+        // Actualizar estado de pedidos automáticamente
+        function actualizarEstados() {
+            const pedidos = document.querySelectorAll('.current-status');
+            pedidos.forEach(pedido => {
+                const pedidoId = pedido.id.replace('pedido-', '');
+                
+                fetch(`/api/seguimiento/${pedidoId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.error) {
+                            // Actualizar estado visual
+                            const statusBadge = pedido.querySelector('.badge');
+                            const statusIcon = pedido.querySelector('.status-icon');
+                            const statusText = pedido.querySelector('h3 .badge');
+                            
+                            if (statusBadge && statusText) {
+                                statusBadge.className = 'badge ' + getStatusClass(data.estado);
+                                statusBadge.textContent = data.estado.toUpperCase();
+                                
+                                statusText.className = 'badge ' + getStatusClass(data.estado);
+                                statusText.textContent = data.estado.toUpperCase();
+                            }
+                            
+                            if (statusIcon) {
+                                statusIcon.className = 'status-icon ' + data.estado;
+                                const icon = statusIcon.querySelector('i');
+                                if (icon) {
+                                    icon.className = getStatusIcon(data.estado);
+                                }
+                            }
+                            
+                            // Agregar nuevos comentarios si existen
+                            if (data.comentarios && data.comentarios.length > 0) {
+                                const timeline = pedido.querySelector('.timeline');
+                                const existingComments = Array.from(timeline.querySelectorAll('.timeline-item')).map(item => 
+                                    item.querySelector('.timeline-message').textContent
+                                );
+                                
+                                data.comentarios.forEach(comentario => {
+                                    const commentText = `${comentario.usuario}: ${comentario.mensaje}`;
+                                    if (!existingComments.includes(commentText)) {
+                                        const newItem = document.createElement('div');
+                                        newItem.className = 'timeline-item';
+                                        newItem.innerHTML = `
+                                            <div class="timeline-content">
+                                                <div class="timeline-date">
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                    ${new Date(comentario.fecha).toLocaleString('es-MX')}
+                                                </div>
+                                                <div class="timeline-message">
+                                                    <strong>${comentario.usuario}:</strong> ${comentario.mensaje}
+                                                </div>
+                                            </div>
+                                        `;
+                                        timeline.insertBefore(newItem, timeline.firstChild);
+                                    }
+                                });
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error actualizando estado:', error));
+            });
+        }
+
+        // Función para obtener clase CSS según estado
+        function getStatusClass(estado) {
+            const classes = {
+                'pendiente': 'badge-warning',
+                'en_proceso': 'badge-info',
+                'enviado': 'badge-secondary',
+                'entregado': 'badge-success'
+            };
+            return classes[estado] || 'badge-primary';
+        }
+
+        // Función para obtener icono según estado
+        function getStatusIcon(estado) {
+            const icons = {
+                'pendiente': 'fas fa-clock',
+                'en_proceso': 'fas fa-cogs',
+                'enviado': 'fas fa-shipping-fast',
+                'entregado': 'fas fa-check-circle'
+            };
+            return icons[estado] || 'fas fa-box';
+        }
+
+        // Actualizar cada 30 segundos
+        setInterval(actualizarEstados, 30000);
+
+        // Actualizar al cargar la página
+        document.addEventListener('DOMContentLoaded', actualizarEstados);
+    </script>
+</body>
+</html>
