@@ -986,6 +986,62 @@ def mi_seguimiento():
         flash(f'Error al cargar seguimiento: {str(e)}', 'error')
         return render_template('mi_seguimiento.html', pedidos=[])
 
+# NUEVA RUTA: Buscar pedido específico
+@app.route('/seguimiento_pedido', methods=['GET', 'POST'])
+@cliente_required
+def seguimiento_pedido_cliente():
+    """Permite al cliente buscar un pedido específico por su ID"""
+    pedido_id = None
+    pedido = None
+    
+    if request.method == 'POST':
+        pedido_id = request.form.get('pedido_id')
+    else:
+        pedido_id = request.args.get('id')
+    
+    if pedido_id:
+        try:
+            # Buscar el pedido por ID
+            pedido = coleccion_ventas.find_one({
+                '_id': ObjectId(pedido_id),
+                'cliente_id': session['cliente_id']
+            })
+            
+            if not pedido:
+                flash('Pedido no encontrado o no tienes permisos para verlo', 'error')
+                return redirect(url_for('mi_seguimiento'))
+            
+            # Obtener información de seguimiento
+            seguimiento = coleccion_pedidos.find_one({'venta_id': str(pedido['_id'])})
+            if seguimiento:
+                pedido['estado_seguimiento'] = seguimiento.get('estado', 'pendiente')
+                pedido['ultima_actualizacion'] = seguimiento.get('ultima_actualizacion', '')
+                pedido['comentarios'] = seguimiento.get('comentarios', [])
+            else:
+                pedido['estado_seguimiento'] = 'pendiente'
+                pedido['ultima_actualizacion'] = pedido['fecha_venta']
+                pedido['comentarios'] = []
+            
+            # Obtener información completa del cliente
+            cliente = coleccion_clientes.find_one({'_id': ObjectId(session['cliente_id'])})
+            if cliente:
+                pedido['cliente_nombre'] = cliente.get('nombre', 'Cliente')
+                pedido['cliente_email'] = cliente.get('email', '')
+                pedido['cliente_direccion'] = cliente.get('direccion', '')
+                pedido['cliente_telefono'] = cliente.get('telefono', '')
+            
+            return render_template('seguimiento_detalle_cliente.html', 
+                                pedido=pedido,
+                                cliente=cliente)
+            
+        except Exception as e:
+            print(f"Error al buscar pedido: {e}")
+            flash('Error al buscar el pedido. Verifica el ID e intenta nuevamente.', 'error')
+            return render_template('buscar_seguimiento.html')
+    
+    # Si no hay ID, mostrar formulario para buscarlo
+    return render_template('buscar_seguimiento.html')
+
 # ----------------- API PARA SEGUIMIENTO (para cliente) -----------------
 
 @app.route('/api/seguimiento/<venta_id>')
@@ -1194,17 +1250,15 @@ def agregar_carrito():
         
         libro = coleccion_libros.find_one({'_id': ObjectId(libro_id)})
         if not libro:
-            return jsonify({'success': False, 'message': 'Libro no encontrado'})
+            return jsonify({'éxito': False, 'error': 'Libro no encontrado'})
         
         if libro.get('stock', 0) < cantidad:
-            return jsonify({'success': False, 'message': 'Stock insuficiente'})
+            return jsonify({'éxito': False, 'error': 'Stock insuficiente'})
         
-        # Inicializar carrito si no existe
-        if 'carrito' not in session:
-            session['carrito'] = []
+        # Inicializar carrito si no existe - ¡CORREGIDO!
+        carrito = session.get('carrito', [])
         
         # Verificar si el libro ya está en el carrito
-        carrito = session['carrito']
         libro_en_carrito = None
         for item in carrito:
             if item['libro_id'] == libro_id:
@@ -1215,7 +1269,7 @@ def agregar_carrito():
             # Actualizar cantidad si ya está en el carrito
             nueva_cantidad = libro_en_carrito['cantidad'] + cantidad
             if nueva_cantidad > libro['stock']:
-                return jsonify({'success': False, 'message': 'Stock insuficiente para la cantidad solicitada'})
+                return jsonify({'éxito': False, 'error': 'Stock insuficiente para la cantidad solicitada'})
             libro_en_carrito['cantidad'] = nueva_cantidad
             libro_en_carrito['subtotal'] = libro['precio'] * nueva_cantidad
         else:
@@ -1234,13 +1288,12 @@ def agregar_carrito():
         session.modified = True
         
         return jsonify({
-            'success': True, 
-            'message': 'Libro agregado al carrito',
+            'éxito': True,
             'carrito_count': len(carrito)
         })
         
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({'éxito': False, 'error': str(e)})
 
 @app.route('/carrito')
 @cliente_required
@@ -1329,7 +1382,9 @@ def vaciar_carrito():
 @cliente_required
 def comprar_carrito():
     try:
-        carrito = session.get('carrito', [])
+        # ¡ESTO ES LO MÁS IMPORTANTE! DEBE TENER PARÉNTESIS
+        carrito = session.get('carrito', [])  # ← ASÍ DEBE SER
+        
         if not carrito:
             flash('El carrito está vacío', 'error')
             return redirect(url_for('ver_carrito'))

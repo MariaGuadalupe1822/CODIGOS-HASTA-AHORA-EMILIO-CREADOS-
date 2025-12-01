@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catálogo de Libros</title>
     <style>
-        /* MANTENGO TUS ESTILOS ORIGINALES */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -33,7 +32,6 @@
             flex-wrap: wrap;
             gap: 15px;
         }
-        /* AGREGADO: Estilos para búsqueda */
         .search-section {
             margin-bottom: 30px;
             background: #f8f9fa;
@@ -166,6 +164,29 @@
             padding: 60px 20px;
             color: #6c757d;
         }
+        /* NUEVO: Estilos para mensajes flotantes */
+        .mensaje-flotante {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+            display: none;
+        }
+        .mensaje-exito {
+            background: #28a745;
+            color: white;
+        }
+        .mensaje-error {
+            background: #dc3545;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -174,7 +195,9 @@
             <h1>📚 Catálogo de Libros</h1>
             <div>
                 <a href="{{ url_for('mis_compras') }}" class="btn btn-info">📋 Mis Compras</a>
-                <a href="{{ url_for('ver_carrito') }}" class="btn btn-primary">🛒 Carrito</a>
+                <a href="{{ url_for('ver_carrito') }}" class="btn btn-primary">
+                    🛒 Carrito <span id="cart-count">({{ session.carrito|length if session.carrito else 0 }})</span>
+                </a>
                 <a href="{{ url_for('logout') }}" class="btn btn-secondary">🚪 Cerrar Sesión</a>
             </div>
         </div>
@@ -189,7 +212,7 @@
             {% endif %}
         {% endwith %}
 
-        <!-- BÚSQUEDA AGREGADA -->
+        <!-- BÚSQUEDA -->
         <div class="search-section">
             <form method="GET" action="{{ url_for('catalogo_cliente') }}" class="search-form">
                 <input type="text" name="q" value="{{ query }}" 
@@ -225,17 +248,16 @@
                     {% endif %}
                     
                     <div class="action-buttons">
-                        <form method="POST" action="{{ url_for('agregar_carrito') }}" style="display: flex; gap: 10px; align-items: center;">
-                            <input type="hidden" name="libro_id" value="{{ libro._id }}">
-                            <input type="number" name="cantidad" value="1" min="1" max="{{ libro.stock }}" class="cantidad-input">
-                            <button type="submit" class="btn btn-success">➕ Carrito</button>
-                        </form>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="cantidad-{{ libro._id }}" value="1" min="1" max="{{ libro.stock }}" class="cantidad-input">
+                            <button type="button" class="btn btn-success" onclick="agregarAlCarrito('{{ libro._id }}', document.getElementById('cantidad-{{ libro._id }}').value)">
+                                ➕ Carrito
+                            </button>
+                        </div>
                         
-                        <form method="POST" action="{{ url_for('comprar_directo') }}">
-                            <input type="hidden" name="libro_id" value="{{ libro._id }}">
-                            <input type="hidden" name="cantidad" value="1">
-                            <button type="submit" class="btn btn-primary">🛒 Comprar Ahora</button>
-                        </form>
+                        <button type="button" class="btn btn-primary" onclick="comprarDirecto('{{ libro._id }}', document.getElementById('cantidad-{{ libro._id }}').value)">
+                            🛒 Comprar Ahora
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
@@ -251,19 +273,109 @@
         {% endif %}
     </div>
 
+    <!-- NUEVO: Contenedor para mensajes flotantes -->
+    <div id="mensaje-flotante" class="mensaje-flotante"></div>
+
     <script>
-        // Mostrar mensajes de éxito/error
-        document.addEventListener('DOMContentLoaded', function() {
-            // Actualizar automáticamente los formularios de compra directa
-            document.querySelectorAll('form[action="{{ url_for("comprar_directo") }}"]').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    const cantidadInput = this.querySelector('input[name="cantidad"]');
-                    if (!cantidadInput.value || cantidadInput.value < 1) {
-                        e.preventDefault();
-                        alert('La cantidad debe ser al menos 1');
-                    }
+        // Animación CSS para mensajes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Función para mostrar mensajes bonitos
+        function mostrarMensaje(mensaje, tipo = 'exito') {
+            const mensajeDiv = document.getElementById('mensaje-flotante');
+            mensajeDiv.textContent = mensaje;
+            mensajeDiv.className = `mensaje-flotante mensaje-${tipo}`;
+            mensajeDiv.style.display = 'block';
+            mensajeDiv.style.animation = 'slideIn 0.3s ease';
+            
+            // Ocultar después de 3 segundos
+            setTimeout(() => {
+                mensajeDiv.style.animation = 'fadeOut 0.5s ease';
+                setTimeout(() => {
+                    mensajeDiv.style.display = 'none';
+                    mensajeDiv.style.animation = '';
+                }, 500);
+            }, 3000);
+        }
+
+        // Función para agregar al carrito
+        async function agregarAlCarrito(libroId, cantidad = 1) {
+            try {
+                const response = await fetch('/carrito/agregar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `libro_id=${libroId}&cantidad=${cantidad}`
                 });
+
+                const data = await response.json();
+                
+                if (data.éxito) {
+                    // SOLO MOSTRAR MENSAJE SIMPLE
+                    mostrarMensaje('✅ Libro agregado al carrito', 'exito');
+                    
+                    // Actualizar contador del carrito
+                    actualizarContadorCarrito(data.carrito_count);
+                } else {
+                    mostrarMensaje('❌ ' + (data.error || 'Error al agregar al carrito'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarMensaje('❌ Error de conexión', 'error');
+            }
+        }
+
+        // Función para comprar directo
+        async function comprarDirecto(libroId, cantidad = 1) {
+            try {
+                // Mostrar mensaje de procesando
+                mostrarMensaje('⏳ Procesando compra...', 'exito');
+                
+                const response = await fetch('/comprar-directo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `libro_id=${libroId}&cantidad=${cantidad}`
+                });
+
+                if (response.ok) {
+                    // Redirigir a la página de la compra
+                    window.location.href = '/mis-compras';
+                } else {
+                    const data = await response.json();
+                    mostrarMensaje('❌ ' + (data.error || 'Error al procesar compra'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarMensaje('❌ Error de conexión', 'error');
+            }
+        }
+
+        // Función para actualizar contador del carrito
+        function actualizarContadorCarrito(count) {
+            const cartCountElements = document.querySelectorAll('#cart-count, .cart-count');
+            cartCountElements.forEach(element => {
+                element.textContent = `(${count})`;
             });
+        }
+
+        // Inicializar contador del carrito
+        document.addEventListener('DOMContentLoaded', function() {
+            const carritoCount = {{ session.carrito|length if session.carrito else 0 }};
+            actualizarContadorCarrito(carritoCount);
         });
     </script>
 </body>

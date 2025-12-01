@@ -572,7 +572,7 @@
                                 <i class="fas fa-clock"></i>
                             {% elif pedido.estado_seguimiento == 'en_proceso' %}
                                 <i class="fas fa-cogs"></i>
-                            {% elif pedido.estado_seguimiento == 'enviado' %}
+                            {% elif pedido.estado_seguimiento == 'enviado' or pedido.estado_seguimiento == 'emolento' %}
                                 <i class="fas fa-shipping-fast"></i>
                             {% elif pedido.estado_seguimiento == 'entregado' %}
                                 <i class="fas fa-check-circle"></i>
@@ -583,8 +583,12 @@
                         <div class="status-details">
                             <h3>
                                 Pedido #{{ pedido._id }}
-                                <span class="badge badge-{{ 'warning' if pedido.estado_seguimiento == 'pendiente' else 'info' if pedido.estado_seguimiento == 'en_proceso' else 'secondary' if pedido.estado_seguimiento == 'enviado' else 'success' }}">
+                                <span class="badge badge-{{ 'warning' if pedido.estado_seguimiento == 'pendiente' else 'info' if pedido.estado_seguimiento == 'en_proceso' else 'secondary' if pedido.estado_seguimiento == 'enviado' or pedido.estado_seguimiento == 'emolento' else 'success' }}">
+                                    {% if pedido.estado_seguimiento == 'emolento' %}
+                                    ENVIADO
+                                    {% else %}
                                     {{ pedido.estado_seguimiento|upper }}
+                                    {% endif %}
                                 </span>
                             </h3>
                             <p>
@@ -598,11 +602,9 @@
                         </div>
                     </div>
                     <div>
-                        <a href="{{ url_for('ver_compra', id=pedido._id) }}" class="btn btn-sm btn-info">
-                            <i class="fas fa-eye"></i> Ver Detalles
-                        </a>
+                        <!-- SOLO BOTÓN DE PDF - SIN ICONO DE OJO -->
                         <a href="{{ url_for('comprobante_cliente', id=pedido._id) }}" class="btn btn-sm btn-warning">
-                            <i class="fas fa-file-pdf"></i> Comprobante
+                            <i class="fas fa-file-pdf"></i> Descargar Comprobante
                         </a>
                     </div>
                 </div>
@@ -758,6 +760,7 @@
                 'pendiente': 'badge-warning',
                 'en_proceso': 'badge-info',
                 'enviado': 'badge-secondary',
+                'emolento': 'badge-secondary',
                 'entregado': 'badge-success'
             };
             return classes[estado] || 'badge-primary';
@@ -769,6 +772,7 @@
                 'pendiente': 'fas fa-clock',
                 'en_proceso': 'fas fa-cogs',
                 'enviado': 'fas fa-shipping-fast',
+                'emolento': 'fas fa-shipping-fast',
                 'entregado': 'fas fa-check-circle'
             };
             return icons[estado] || 'fas fa-box';

@@ -717,6 +717,8 @@
                             <span class="badge badge-info">En Proceso</span>
                             {% elif venta.estado == 'enviado' %}
                             <span class="badge badge-info">Enviado</span>
+                            {% elif venta.estado == 'entregado' %}
+                            <span class="badge badge-success">Entregado</span>
                             {% else %}
                             <span class="badge badge-success">Completada</span>
                             {% endif %}
@@ -726,6 +728,11 @@
                                 <!-- SOLO SE MANTIENE EL BOTÓN PDF -->
                                 <a href="{{ url_for('comprobante_venta', id=venta._id) }}" class="btn btn-warning btn-sm" title="Generar PDF">
                                     <i class="fas fa-file-pdf"></i>
+                                </a>
+                                
+                                <!-- Botón para ver venta (detalles) -->
+                                <a href="{{ url_for('ver_venta', id=venta._id) }}" class="btn btn-info btn-sm" title="Ver Detalles">
+                                    <i class="fas fa-eye"></i>
                                 </a>
                                 
                                 {% if not venta.cancelada and venta.puede_cancelar and session.usuario_rol == 'administrador' %}

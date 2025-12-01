@@ -542,7 +542,7 @@
                             <span class="badge badge-warning">Pendiente</span>
                             {% elif pedido.estado_seguimiento == 'en_proceso' %}
                             <span class="badge badge-info">En Proceso</span>
-                            {% elif pedido.estado_seguimiento == 'enviado' %}
+                            {% elif pedido.estado_seguimiento == 'enviado' or pedido.estado_seguimiento == 'emolento' %}
                             <span class="badge badge-success">Enviado</span>
                             {% elif pedido.estado_seguimiento == 'entregado' %}
                             <span class="badge badge-primary">Entregado</span>
@@ -559,14 +559,12 @@
                         </td>
                         <td>
                             <div style="display: flex; gap: 8px;">
-                                <button class="btn btn-info btn-sm" onclick="verSeguimiento('{{ pedido._id }}')" title="Ver Seguimiento">
-                                    <i class="fas fa-eye"></i>
-                                </button>
+                                <!-- SIN ICONO DE OJO - SOLO CAMBIAR ESTADO Y PDF -->
                                 <button class="btn btn-warning btn-sm" onclick="actualizarEstado('{{ pedido._id }}')" title="Actualizar Estado">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="fas fa-edit"></i> Cambiar Estado
                                 </button>
                                 <a href="{{ url_for('comprobante_venta', id=pedido._id) }}" class="btn btn-primary btn-sm" title="Generar PDF">
-                                    <i class="fas fa-file-pdf"></i>
+                                    <i class="fas fa-file-pdf"></i> PDF
                                 </a>
                             </div>
                         </td>
@@ -582,29 +580,6 @@
             <p>Todos los pedidos han sido procesados o no hay pedidos online recientes.</p>
         </div>
         {% endif %}
-    </div>
-
-    <!-- Modal para ver seguimiento -->
-    <div id="modalSeguimiento" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">
-                    <i class="fas fa-history"></i>
-                    Historial de Seguimiento
-                </h3>
-                <span class="close" onclick="cerrarModal('modalSeguimiento')">&times;</span>
-            </div>
-            
-            <div id="seguimientoContent">
-                <!-- Contenido cargado dinámicamente -->
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-warning" onclick="cerrarModal('modalSeguimiento')">
-                    <i class="fas fa-times"></i> Cerrar
-                </button>
-            </div>
-        </div>
     </div>
 
     <!-- Modal para actualizar estado -->
@@ -662,63 +637,6 @@
             }, 5000);
         });
 
-        // Funciones para modales
-        function verSeguimiento(pedidoId) {
-            // Cargar datos del seguimiento
-            fetch(`/api/seguimiento/${pedidoId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    
-                    const content = document.getElementById('seguimientoContent');
-                    let html = `
-                        <div>
-                            <h4>Pedido: #${data.venta_id}</h4>
-                            <p><strong>Estado actual:</strong> <span class="badge badge-${getBadgeColor(data.estado)}">${formatEstado(data.estado)}</span></p>
-                            <p><strong>Última actualización:</strong> ${data.ultima_actualizacion}</p>
-                        </div>
-                        
-                        <div class="timeline">
-                            <h5>Historial:</h5>
-                    `;
-                    
-                    if (data.comentarios && data.comentarios.length > 0) {
-                        // Ordenar comentarios por fecha (más reciente primero)
-                        data.comentarios.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-                        
-                        data.comentarios.forEach(comentario => {
-                            const fecha = new Date(comentario.fecha);
-                            html += `
-                                <div class="timeline-item">
-                                    <div class="timeline-date">
-                                        ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}
-                                    </div>
-                                    <div class="timeline-content">
-                                        <strong>${comentario.usuario}:</strong>
-                                        <p>${comentario.mensaje}</p>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    } else {
-                        html += `<p>No hay historial disponible.</p>`;
-                    }
-                    
-                    html += `</div>`;
-                    content.innerHTML = html;
-                    
-                    // Mostrar modal
-                    document.getElementById('modalSeguimiento').style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al cargar el seguimiento');
-                });
-        }
-
         function actualizarEstado(pedidoId) {
             document.getElementById('pedidoId').value = pedidoId;
             document.getElementById('modalActualizar').style.display = 'block';
@@ -771,27 +689,6 @@
                 alert('Error al actualizar el estado del pedido.');
             });
         });
-
-        // Funciones auxiliares
-        function getBadgeColor(estado) {
-            switch(estado) {
-                case 'pendiente': return 'warning';
-                case 'en_proceso': return 'info';
-                case 'enviado': return 'success';
-                case 'entregado': return 'primary';
-                default: return 'warning';
-            }
-        }
-
-        function formatEstado(estado) {
-            switch(estado) {
-                case 'pendiente': return 'Pendiente';
-                case 'en_proceso': return 'En Proceso';
-                case 'enviado': return 'Enviado';
-                case 'entregado': return 'Entregado';
-                default: return estado;
-            }
-        }
 
         // Cerrar modal al hacer clic fuera
         window.onclick = function(event) {

@@ -111,9 +111,9 @@
                 <form method="POST" action="{{ url_for('vaciar_carrito') }}" style="display: inline;">
                     <button type="submit" class="btn btn-warning" onclick="return confirm('¿Estás seguro de vaciar todo el carrito?')">🗑️ Vaciar Carrito</button>
                 </form>
-                <form method="POST" action="{{ url_for('comprar_carrito') }}" style="display: inline;">
-                    <button type="submit" class="btn btn-success" onclick="return confirm('¿Confirmar compra de todos los items del carrito por ${{ total|round(2) }}?')">✅ Proceder al Pago</button>
-                </form>
+                <button type="button" class="btn btn-success" onclick="confirmarCompra()">
+                    ✅ Proceder al Pago
+                </button>
             </div>
         {% else %}
             <div class="empty-cart">
@@ -143,15 +143,50 @@
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('❌ ' + data.message);
+                    // MOSTRAR MENSAJE AMIGABLE, NO JSON
+                    alert('❌ ' + (data.message || 'Error al actualizar'));
                     location.reload();
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('❌ Error al actualizar el carrito');
+                alert('❌ Error de conexión al servidor');
                 location.reload();
             });
+        }
+
+        // Función para comprar
+        function confirmarCompra() {
+            const total = parseFloat('{{ total|round(2) }}');
+            if (confirm(`¿Confirmar compra de todos los items del carrito por $${total.toFixed(2)}?`)) {
+                // Mostrar mensaje de procesando
+                const btn = document.querySelector('button[onclick="confirmarCompra()"]');
+                if (btn) {
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '⏳ Procesando...';
+                    
+                    // Enviar formulario de compra
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '{{ url_for("comprar_carrito") }}';
+                    document.body.appendChild(form);
+                    form.submit();
+                    
+                    // Restaurar botón si hay error (pero normalmente se redirige)
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }, 5000);
+                } else {
+                    // Método alternativo
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '{{ url_for("comprar_carrito") }}';
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            }
         }
     </script>
 </body>
