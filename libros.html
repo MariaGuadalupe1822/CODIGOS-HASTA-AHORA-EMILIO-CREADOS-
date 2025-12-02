@@ -336,6 +336,32 @@
             color: var(--success);
             font-weight: bold;
         }
+
+        /* NUEVOS ESTILOS PARA IMÁGENES */
+        .libro-imagen {
+            width: 50px;
+            height: 70px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid var(--gray-light);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: var(--transition);
+        }
+
+        .libro-imagen:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .libro-info-contenedor {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .libro-detalles {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -408,7 +434,8 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Nombre</th>
+                        <th>Imagen</th>
+                        <th>Información del Libro</th>
                         <th>Autor</th>
                         <th>Género</th>
                         <th>Precio</th>
@@ -421,10 +448,22 @@
                     {% for libro in libros %}
                     <tr>
                         <td>
-                            <strong>{{ libro.nombre }}</strong>
-                            {% if libro.descripcion %}
-                            <div style="font-size: 12px; color: var(--gray);">{{ libro.descripcion[:50] }}{% if libro.descripcion|length > 50 %}...{% endif %}</div>
-                            {% endif %}
+                            <img src="{{ libro.imagen_url or 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80' }}" 
+                                 alt="{{ libro.nombre }}" 
+                                 class="libro-imagen">
+                        </td>
+                        <td>
+                            <div class="libro-info-contenedor">
+                                <div class="libro-detalles">
+                                    <strong>{{ libro.nombre }}</strong>
+                                    {% if libro.descripcion %}
+                                    <div style="font-size: 12px; color: var(--gray);">{{ libro.descripcion[:50] }}{% if libro.descripcion|length > 50 %}...{% endif %}</div>
+                                    {% endif %}
+                                    <div style="font-size: 12px; color: var(--gray);">
+                                        <i class="fas fa-calendar-alt"></i> {{ libro.anio_publicacion }}
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td>{{ libro.autor }}</td>
                         <td>{{ libro.genero }}</td>

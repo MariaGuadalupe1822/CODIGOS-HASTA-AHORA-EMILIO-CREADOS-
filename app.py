@@ -702,8 +702,8 @@ def cancelar_venta(id):
             'cliente_nombre': venta.get('cliente_nombre', ''),
             'total_venta': venta['total'],
             'razon': razon,
-            'cancelado_por': session['usuario_id'],
-            'cancelado_por_nombre': session['usuario_nombre'],
+            'cancelado_por': session.get('usuario_id'),
+            'cancelado_por_nombre': session.get('usuario_nombre'),
             'fecha_cancelacion': datetime.now(),
             'fecha_venta_original': venta['fecha_venta']
         }
@@ -803,8 +803,8 @@ def nueva_venta():
                 'cliente_nombre': cliente['nombre'] if cliente else 'Cliente no encontrado',
                 'cliente_email': cliente['email'] if cliente else '',
                 'cliente_telefono': cliente.get('telefono', ''),
-                'usuario_id': session['usuario_id'],
-                'usuario_nombre': session['usuario_nombre'],
+                'usuario_id': session.get('usuario_id'),
+                'usuario_nombre': session.get('usuario_nombre'),
                 'items': items,
                 'subtotal': subtotal_venta,
                 'iva': iva_venta,
@@ -939,7 +939,7 @@ def actualizar_estado_pedido(id):
             nuevo_comentario = {
                 'fecha': datetime.now(),
                 'mensaje': comentario,
-                'usuario': session['usuario_nombre']
+                'usuario': session.get('usuario_nombre', 'Sistema')
             }
             coleccion_pedidos.update_one(
                 {'venta_id': id},
@@ -965,7 +965,7 @@ def mi_seguimiento():
     try:
         # Obtener pedidos del cliente
         pedidos = list(coleccion_ventas.find({
-            'cliente_id': session['cliente_id'],
+            'cliente_id': session.get('cliente_id'),
             'tipo': 'online'
         }).sort('fecha_venta', -1))
         
@@ -1004,7 +1004,7 @@ def seguimiento_pedido_cliente():
             # Buscar el pedido por ID
             pedido = coleccion_ventas.find_one({
                 '_id': ObjectId(pedido_id),
-                'cliente_id': session['cliente_id']
+                'cliente_id': session.get('cliente_id')
             })
             
             if not pedido:
@@ -1023,7 +1023,7 @@ def seguimiento_pedido_cliente():
                 pedido['comentarios'] = []
             
             # Obtener información completa del cliente
-            cliente = coleccion_clientes.find_one({'_id': ObjectId(session['cliente_id'])})
+            cliente = coleccion_clientes.find_one({'_id': ObjectId(session.get('cliente_id'))})
             if cliente:
                 pedido['cliente_nombre'] = cliente.get('nombre', 'Cliente')
                 pedido['cliente_email'] = cliente.get('email', '')
@@ -1051,7 +1051,7 @@ def api_seguimiento(venta_id):
         # Verificar que el pedido pertenece al cliente
         venta = coleccion_ventas.find_one({
             '_id': ObjectId(venta_id),
-            'cliente_id': session['cliente_id']
+            'cliente_id': session.get('cliente_id')
         })
         
         if not venta:
@@ -1255,7 +1255,7 @@ def agregar_carrito():
         if libro.get('stock', 0) < cantidad:
             return jsonify({'éxito': False, 'error': 'Stock insuficiente'})
         
-        # Inicializar carrito si no existe - ¡CORREGIDO!
+        # Inicializar carrito si no existe
         carrito = session.get('carrito', [])
         
         # Verificar si el libro ya está en el carrito
@@ -1382,8 +1382,7 @@ def vaciar_carrito():
 @cliente_required
 def comprar_carrito():
     try:
-        # ¡ESTO ES LO MÁS IMPORTANTE! DEBE TENER PARÉNTESIS
-        carrito = session.get('carrito', [])  # ← ASÍ DEBE SER
+        carrito = session.get('carrito', [])
         
         if not carrito:
             flash('El carrito está vacío', 'error')
@@ -1429,9 +1428,9 @@ def comprar_carrito():
         
         # Crear venta con información completa e IVA
         venta = {
-            'cliente_id': session['cliente_id'],
-            'cliente_nombre': session['cliente_nombre'],
-            'cliente_email': session['cliente_email'],
+            'cliente_id': session.get('cliente_id', ''),
+            'cliente_nombre': session.get('cliente_nombre', ''),
+            'cliente_email': session.get('cliente_email', ''),
             'items': items,
             'subtotal': subtotal_venta,
             'iva': iva_venta,
@@ -1446,8 +1445,8 @@ def comprar_carrito():
         # Crear registro de seguimiento
         seguimiento = {
             'venta_id': str(resultado.inserted_id),
-            'cliente_id': session['cliente_id'],
-            'cliente_nombre': session['cliente_nombre'],
+            'cliente_id': session.get('cliente_id', ''),
+            'cliente_nombre': session.get('cliente_nombre', ''),
             'estado': 'pendiente',
             'fecha_pedido': datetime.now(),
             'ultima_actualizacion': datetime.now(),
@@ -1467,10 +1466,9 @@ def comprar_carrito():
         return redirect(url_for('ver_compra', id=resultado.inserted_id))
         
     except Exception as e:
-        flash(f'Error al procesar compra: {e}', 'error')
+        flash(f'Error al procesar compra: {str(e)}', 'error')
         return redirect(url_for('ver_carrito'))
 
-# Añadir esta función que faltaba
 @app.route('/comprar-directo', methods=['POST'])
 @cliente_required
 def comprar_directo():
@@ -1504,9 +1502,9 @@ def comprar_directo():
         }]
         
         venta = {
-            'cliente_id': session['cliente_id'],
-            'cliente_nombre': session['cliente_nombre'],
-            'cliente_email': session['cliente_email'],
+            'cliente_id': session.get('cliente_id', ''),
+            'cliente_nombre': session.get('cliente_nombre', ''),
+            'cliente_email': session.get('cliente_email', ''),
             'items': items,
             'subtotal': subtotal,
             'iva': iva,
@@ -1528,8 +1526,8 @@ def comprar_directo():
         # Crear registro de seguimiento
         seguimiento = {
             'venta_id': str(resultado.inserted_id),
-            'cliente_id': session['cliente_id'],
-            'cliente_nombre': session['cliente_nombre'],
+            'cliente_id': session.get('cliente_id', ''),
+            'cliente_nombre': session.get('cliente_nombre', ''),
             'estado': 'pendiente',
             'fecha_pedido': datetime.now(),
             'ultima_actualizacion': datetime.now(),
@@ -1554,7 +1552,7 @@ def comprar_directo():
 @cliente_required
 def mis_compras():
     try:
-        ventas_cursor = coleccion_ventas.find({'cliente_id': session['cliente_id']})
+        ventas_cursor = coleccion_ventas.find({'cliente_id': session.get('cliente_id', '')})
         ventas = list(ventas_cursor)
         
         for venta in ventas:
@@ -1577,7 +1575,7 @@ def cancelar_mi_compra(id):
     try:
         venta = coleccion_ventas.find_one({
             '_id': ObjectId(id),
-            'cliente_id': session['cliente_id']
+            'cliente_id': session.get('cliente_id', '')
         })
         
         if not venta:
@@ -1600,12 +1598,12 @@ def cancelar_mi_compra(id):
         # Crear registro de cancelación
         cancelacion = {
             'venta_id': id,
-            'cliente_id': session['cliente_id'],
-            'cliente_nombre': session['cliente_nombre'],
+            'cliente_id': session.get('cliente_id', ''),
+            'cliente_nombre': session.get('cliente_nombre', ''),
             'total_venta': venta['total'],
             'razon': razon,
-            'cancelado_por': session['cliente_id'],
-            'cancelado_por_nombre': session['cliente_nombre'],
+            'cancelado_por': session.get('cliente_id', ''),
+            'cancelado_por_nombre': session.get('cliente_nombre', ''),
             'fecha_cancelacion': datetime.now(),
             'fecha_venta_original': venta['fecha_venta']
         }
@@ -1645,7 +1643,7 @@ def cancelar_mi_compra(id):
 @cliente_required
 def comprobante_cliente(id):
     try:
-        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session['cliente_id']})
+        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session.get('cliente_id', '')})
         if not venta:
             flash('Compra no encontrada', 'error')
             return redirect(url_for('mis_compras'))
@@ -1770,7 +1768,7 @@ def comprobante_cliente(id):
 @cliente_required
 def ver_compra(id):
     try:
-        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session['cliente_id']})
+        venta = coleccion_ventas.find_one({'_id': ObjectId(id), 'cliente_id': session.get('cliente_id', '')})
         if not venta:
             flash('Compra no encontrada', 'error')
             return redirect(url_for('mis_compras'))
